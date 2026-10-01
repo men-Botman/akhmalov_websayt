@@ -1,4 +1,5 @@
-import { AlertTriangle, Ban, CheckCircle2, PhoneCall, TrendingUp, XCircle } from 'lucide-react';
+import { AlertTriangle, Ban, CheckCircle2, Copy, PhoneCall, TrendingUp, X, XCircle } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import type { Pitch, UserTrust } from '../types';
 
@@ -41,43 +42,159 @@ const normalizeUzbekPhone = (value?: string) => {
   return `+998${digits}`;
 };
 
-const triggerQuickCall = (phone?: string) => {
-  const normalized = normalizeUzbekPhone(phone);
-
-  if (!normalized) {
-    return;
-  }
-
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent);
-
-  if (isMobile) {
-    window.location.href = `tel:${normalized}`;
-    return;
-  }
-
-  window.alert(`Qo'ng'iroq qilish uchun raqam: ${normalized}. Uni nusxalash yoki Telegram orqali yozish mumkin.`);
-  window.location.href = `tel:${normalized}`;
-};
-
 export function AdminDashboard({ pitches, users, onAction }: AdminDashboardProps) {
-  const totalRevenue = pitches.reduce(
-    (sum, pitch) =>
-      sum +
-      pitch.slots.reduce((slotSum, slot) => {
-        if (slot.status === 'booked' || slot.status === 'pending') {
-          return slotSum + slot.price;
-        }
-        return slotSum;
-      }, 0),
-    0,
+  const [activeCallNumber, setActiveCallNumber] = useState<string | null>(null);
+  const [editablePhone, setEditablePhone] = useState<string>('');
+
+  const totalRevenue = useMemo(
+    () =>
+      pitches.reduce(
+        (sum, pitch) =>
+          sum +
+          pitch.slots.reduce((slotSum, slot) => {
+            if (slot.status === 'booked' || slot.status === 'pending') {
+              return slotSum + slot.price;
+            }
+            return slotSum;
+          }, 0),
+        0,
+      ),
+    [pitches],
   );
+
+  const triggerQuickCall = (phone?: string) => {
+    const normalized = normalizeUzbekPhone(phone);
+
+    if (!normalized) {
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent);
+
+    if (isMobile) {
+      window.location.href = `tel:${normalized}`;
+      return;
+    }
+
+    setActiveCallNumber(normalized);
+    setEditablePhone(normalized);
+  };
+
+  const syncActiveCall = (value: string) => {
+    const cleaned = value.trim();
+    setEditablePhone(cleaned);
+
+    if (cleaned) {
+      setActiveCallNumber(normalizeUzbekPhone(cleaned));
+    }
+  };
+
+  const handleCallNow = () => {
+    const normalized = normalizeUzbekPhone(editablePhone || activeCallNumber || '');
+
+    if (!normalized) {
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      window.location.href = `tel:${normalized}`;
+    }
+  };
+
+  const handleTelegram = () => {
+    const normalized = normalizeUzbekPhone(editablePhone || activeCallNumber || '');
+    const digits = normalized.replace(/\D/g, '');
+
+    if (!digits || typeof window === 'undefined') {
+      return;
+    }
+
+    window.open(`https://t.me/${digits}`, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleCopyPhone = async (phone?: string) => {
+    const normalized = normalizeUzbekPhone(phone ?? editablePhone ?? activeCallNumber ?? '');
+    if (!normalized || typeof navigator === 'undefined' || !navigator.clipboard) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(normalized);
+  };
+
+  const handleCloseBanner = () => {
+    setActiveCallNumber(null);
+    setEditablePhone('');
+  };
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.5fr_0.9fr]">
+      {activeCallNumber ? (
+        <div className="xl:col-span-2 rounded-2xl border border-emerald-500/40 bg-slate-900/90 p-3 shadow-lg shadow-emerald-900/10 backdrop-blur-sm">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 flex-1 items-center gap-3 text-emerald-100">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-200">
+                <PhoneCall className="h-5 w-5" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <label className="mb-1 block text-[10px] font-medium uppercase tracking-[0.2em] text-emerald-300/80">
+                  Telefon raqamni o'zgartirish / terish
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="tel"
+                    value={editablePhone || activeCallNumber}
+                    onChange={(event) => syncActiveCall(event.target.value)}
+                    placeholder="+998 90 123 45 67"
+                    className="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCallNow}
+                className="rounded-xl border border-emerald-400/40 bg-emerald-500/15 px-3 py-2 text-sm font-medium text-emerald-50 transition hover:bg-emerald-500/20"
+              >
+                Qo'ng'iroq qilish
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTelegram}
+                className="rounded-xl border border-sky-400/40 bg-sky-500/10 px-3 py-2 text-sm font-medium text-sky-100 transition hover:bg-sky-500/20"
+              >
+                Telegram'da yozish
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCopyPhone(editablePhone || activeCallNumber || '')}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 transition hover:bg-white/10"
+              >
+                <Copy className="h-4 w-4" />
+                Nusxalash
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCloseBanner}
+                className="rounded-xl border border-white/10 bg-slate-950/30 p-2 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                aria-label="Close call banner"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
         <div className="flex items-center justify-between">
           <div>
@@ -124,27 +241,46 @@ export function AdminDashboard({ pitches, users, onAction }: AdminDashboardProps
                       </span>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      <button type="button" onClick={() => onAction(pitch.id, slot.id, 'arrived')} className="rounded-xl bg-emerald-500 px-2 py-2 text-[11px] font-medium text-slate-950 hover:bg-emerald-400">
-                        <CheckCircle2 className="mx-auto mb-1 h-3.5 w-3.5" />
-                        Keldi
+                    <div className={`mt-3 grid gap-1.5 ${slot.bookedBy?.phone ? 'grid-cols-3' : 'grid-cols-3'} ${slot.status === 'booked' || slot.status === 'pending' ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
+                      <button
+                        type="button"
+                        onClick={() => onAction(pitch.id, slot.id, 'arrived')}
+                        className="inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-emerald-500 px-2 py-1.5 text-[10px] font-medium text-white transition hover:bg-emerald-600"
+                        title="Keldi"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        <span className="whitespace-nowrap">Keldi</span>
                       </button>
-                      <button type="button" onClick={() => onAction(pitch.id, slot.id, 'no-show')} className="rounded-xl bg-amber-500 px-2 py-2 text-[11px] font-medium text-slate-950 hover:bg-amber-400">
-                        <AlertTriangle className="mx-auto mb-1 h-3.5 w-3.5" />
-                        Kelmaslik
+
+                      <button
+                        type="button"
+                        onClick={() => onAction(pitch.id, slot.id, 'no-show')}
+                        className="inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-amber-500 px-2 py-1.5 text-[10px] font-medium text-white transition hover:bg-amber-600"
+                        title="Kelmaslik"
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                        <span className="whitespace-nowrap">Kelmaslik</span>
                       </button>
-                      <button type="button" onClick={() => onAction(pitch.id, slot.id, 'cancel')} className="rounded-xl bg-rose-500 px-2 py-2 text-[11px] font-medium text-white hover:bg-rose-400">
-                        <XCircle className="mx-auto mb-1 h-3.5 w-3.5" />
-                        Bekor
+
+                      <button
+                        type="button"
+                        onClick={() => onAction(pitch.id, slot.id, 'cancel')}
+                        className="inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-rose-500 px-2 py-1.5 text-[10px] font-medium text-white transition hover:bg-rose-600"
+                        title="Bekor"
+                      >
+                        <XCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span className="whitespace-nowrap">Bekor</span>
                       </button>
+
                       {(slot.status === 'booked' || slot.status === 'pending') && slot.bookedBy?.phone ? (
                         <button
                           type="button"
                           onClick={() => triggerQuickCall(slot.bookedBy?.phone)}
-                          className="rounded-xl bg-emerald-600 px-2 py-2 text-[11px] font-medium text-white hover:bg-emerald-500"
+                          className="inline-flex h-9 items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-1.5 text-[10px] font-medium text-white transition hover:bg-emerald-500"
+                          title="Qo'ng'iroq"
                         >
-                          <PhoneCall className="mx-auto mb-1 h-3.5 w-3.5" />
-                          Mijozga qo'ng'iroq qilish
+                          <PhoneCall className="h-3.5 w-3.5 shrink-0" />
+                          <span className="hidden whitespace-nowrap sm:inline">Qo'ng'iroq</span>
                         </button>
                       ) : null}
                     </div>
