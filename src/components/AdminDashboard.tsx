@@ -1,4 +1,4 @@
-import { AlertTriangle, Ban, CheckCircle2, TrendingUp, XCircle } from 'lucide-react';
+import { AlertTriangle, Ban, CheckCircle2, PhoneCall, TrendingUp, XCircle } from 'lucide-react';
 
 import type { Pitch, UserTrust } from '../types';
 
@@ -14,6 +14,54 @@ const formatCurrency = (amount: number) =>
     currency: 'UZS',
     maximumFractionDigits: 0,
   }).format(amount);
+
+const normalizeUzbekPhone = (value?: string) => {
+  if (!value) {
+    return '';
+  }
+
+  const digits = value.replace(/\D/g, '');
+
+  if (!digits) {
+    return '';
+  }
+
+  if (digits.startsWith('998')) {
+    return `+${digits}`;
+  }
+
+  if (digits.startsWith('0')) {
+    return `+998${digits.slice(1)}`;
+  }
+
+  if (digits.length === 9) {
+    return `+998${digits}`;
+  }
+
+  return `+998${digits}`;
+};
+
+const triggerQuickCall = (phone?: string) => {
+  const normalized = normalizeUzbekPhone(phone);
+
+  if (!normalized) {
+    return;
+  }
+
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent);
+
+  if (isMobile) {
+    window.location.href = `tel:${normalized}`;
+    return;
+  }
+
+  window.alert(`Qo'ng'iroq qilish uchun raqam: ${normalized}. Uni nusxalash yoki Telegram orqali yozish mumkin.`);
+  window.location.href = `tel:${normalized}`;
+};
 
 export function AdminDashboard({ pitches, users, onAction }: AdminDashboardProps) {
   const totalRevenue = pitches.reduce(
@@ -76,7 +124,7 @@ export function AdminDashboard({ pitches, users, onAction }: AdminDashboardProps
                       </span>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <button type="button" onClick={() => onAction(pitch.id, slot.id, 'arrived')} className="rounded-xl bg-emerald-500 px-2 py-2 text-[11px] font-medium text-slate-950 hover:bg-emerald-400">
                         <CheckCircle2 className="mx-auto mb-1 h-3.5 w-3.5" />
                         Keldi
@@ -89,6 +137,16 @@ export function AdminDashboard({ pitches, users, onAction }: AdminDashboardProps
                         <XCircle className="mx-auto mb-1 h-3.5 w-3.5" />
                         Bekor
                       </button>
+                      {(slot.status === 'booked' || slot.status === 'pending') && slot.bookedBy?.phone ? (
+                        <button
+                          type="button"
+                          onClick={() => triggerQuickCall(slot.bookedBy?.phone)}
+                          className="rounded-xl bg-emerald-600 px-2 py-2 text-[11px] font-medium text-white hover:bg-emerald-500"
+                        >
+                          <PhoneCall className="mx-auto mb-1 h-3.5 w-3.5" />
+                          Mijozga qo'ng'iroq qilish
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 ))}

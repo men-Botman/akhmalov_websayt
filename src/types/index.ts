@@ -10,6 +10,10 @@ export interface SlotRecord {
   deposit?: number;
   waitlistCount?: number;
   note?: string;
+  bookedBy?: {
+    name?: string;
+    phone?: string;
+  };
 }
 
 export interface Pitch {

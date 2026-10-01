@@ -1,6 +1,7 @@
 import { BellRing, CheckCircle2, CreditCard, Phone, ShieldCheck, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { SlotCard } from './SlotCard';
 import type { BookingMode, SlotRecord } from '../types';
 
 type BookingModalProps = {
@@ -103,6 +104,8 @@ export function BookingModal({
               })}
             </div>
           </div>
+
+          <SlotCard slot={slot} onCall={() => setPhoneVerified(true)} />
 
           <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
             <div className="flex items-center justify-between gap-3">
